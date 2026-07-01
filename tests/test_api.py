@@ -11,7 +11,8 @@ class FakeRAGService:
     def health(self):
         return {"status": "ok", "vector_count": 3, "llm_model": "gemini-2.5-flash", "embedding_model": "fake"}
 
-    def ask(self, question):
+    def ask(self, question, history=None):
+        self.last_history = history
         return QAResult(answer=f"answer to: {question}", sources=[Source(source="a.txt", chunk_index=0)])
 
     def ingest_file(self, file_path):
@@ -37,6 +38,14 @@ def test_ask_endpoint_valid(client):
     assert response.status_code == 200
     assert response.data["answer"] == "answer to: What is RAG?"
     assert response.data["sources"][0]["source"] == "a.txt"
+
+
+@pytest.mark.django_db
+def test_ask_endpoint_with_history(client):
+    history = [{"role": "user", "text": "What is RAG?"}, {"role": "assistant", "text": "It's..."}]
+    response = client.post("/api/ask/", {"question": "rate it", "history": history}, format="json")
+    assert response.status_code == 200
+    assert response.data["answer"] == "answer to: rate it"
 
 
 @pytest.mark.django_db

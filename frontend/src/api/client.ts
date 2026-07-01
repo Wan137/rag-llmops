@@ -1,4 +1,10 @@
-import { ApiError, type AskResponse, type HealthResponse, type UploadResponse } from '../types'
+import {
+  ApiError,
+  type AskResponse,
+  type ChatHistoryMessage,
+  type HealthResponse,
+  type UploadResponse,
+} from '../types'
 
 // empty string = same-origin, which is what makes the vite dev proxy work.
 // set VITE_API_BASE_URL if frontend and backend ever end up on different hosts.
@@ -27,11 +33,14 @@ export async function getHealth(): Promise<HealthResponse> {
   return handleResponse<HealthResponse>(res)
 }
 
-export async function askQuestion(question: string): Promise<AskResponse> {
+export async function askQuestion(
+  question: string,
+  history: ChatHistoryMessage[] = [],
+): Promise<AskResponse> {
   const res = await fetch(`${API_BASE}/api/ask/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history }),
   })
   return handleResponse<AskResponse>(res)
 }

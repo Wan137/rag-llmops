@@ -12,6 +12,12 @@ export type AskResponse = {
   sources: Source[]
 }
 
+// what we send back to the backend so it has some memory of the conversation
+export type ChatHistoryMessage = {
+  role: 'user' | 'assistant'
+  text: string
+}
+
 export type HealthResponse = {
   status: string
   vector_count: number

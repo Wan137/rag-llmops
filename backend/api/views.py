@@ -19,8 +19,9 @@ class AskQuestionView(APIView):
     def post(self, request):
         serializer = AskQuestionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
-        result = get_rag_service().ask(serializer.validated_data["question"])
+        result = get_rag_service().ask(data["question"], data.get("history"))
         return Response(dataclasses.asdict(result))
 
 

@@ -2,8 +2,9 @@
 
 from dataclasses import dataclass, field
 
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -13,12 +14,18 @@ from rag.vector_store.chroma_store import ChromaVectorStore
 SYSTEM_PROMPT = (
     "You are a helpful assistant answering questions using only the provided "
     "context. If the context doesn't contain the answer, say you don't know. "
-    "Do not use outside knowledge.\n\nContext:\n{context}"
+    "Do not use outside knowledge.\n\n"
+    "Use the conversation history to understand follow-up questions and "
+    "references to earlier topics.\n\nContext:\n{context}"
 )
 
 _PROMPT = ChatPromptTemplate.from_messages(
-    [("system", SYSTEM_PROMPT), ("human", "{question}")]
+    [("system", SYSTEM_PROMPT), MessagesPlaceholder("history"), ("human", "{question}")]
 )
+
+# how many past messages we bother sending back to Gemini - more than this and
+# the prompt just gets bigger for no real benefit
+HISTORY_LIMIT = 10
 
 
 @dataclass
@@ -59,6 +66,15 @@ def _to_sources(docs: list) -> list[Source]:
     ]
 
 
+def _to_lc_messages(history: list[dict] | None) -> list[BaseMessage]:
+    if not history:
+        return []
+    return [
+        (HumanMessage if turn.get("role") == "user" else AIMessage)(content=turn.get("text", ""))
+        for turn in history[-HISTORY_LIMIT:]
+    ]
+
+
 class RAGChain:
     def __init__(self, config: RAGConfig, vector_store: ChromaVectorStore) -> None:
         self._retriever = vector_store.as_retriever()
@@ -70,12 +86,14 @@ class RAGChain:
             | llm
             | StrOutputParser()
         )
-        # the prompt step only sees formatted text, so we carry the raw Documents
-        # through in parallel - that's the only way to still have sources afterwards
+        # retriever only needs the question text, but the prompt also needs history -
+        # so the chain now takes a dict instead of a bare question string
         self._chain = RunnableParallel(
-            context=self._retriever, question=RunnablePassthrough()
+            context=(lambda x: x["question"]) | self._retriever,
+            question=lambda x: x["question"],
+            history=lambda x: _to_lc_messages(x.get("history")),
         ).assign(answer=answer_chain)
 
-    def ask(self, question: str) -> QAResult:
-        result = self._chain.invoke(question)
+    def ask(self, question: str, history: list[dict] | None = None) -> QAResult:
+        result = self._chain.invoke({"question": question, "history": history})
         return QAResult(answer=result["answer"], sources=_to_sources(result["context"]))

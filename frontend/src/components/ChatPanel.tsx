@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { askQuestion } from '../api/client'
-import { ApiError } from '../types'
+import { ApiError, type ChatHistoryMessage } from '../types'
 import { MessageBubble, type Message } from './MessageBubble'
+
+// backend only knows about user/assistant turns, so error bubbles get dropped here
+function toHistory(messages: Message[]): ChatHistoryMessage[] {
+  return messages
+    .filter((m): m is Message & { role: 'user' | 'assistant' } => m.role !== 'error')
+    .map((m) => ({ role: m.role, text: m.text }))
+}
 
 export function ChatPanel() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -17,12 +24,13 @@ export function ChatPanel() {
     const q = question.trim()
     if (!q || isAsking) return
 
+    const history = toHistory(messages)
     setMessages((m) => [...m, { role: 'user', text: q }])
     setQuestion('')
     setIsAsking(true)
 
     try {
-      const result = await askQuestion(q)
+      const result = await askQuestion(q, history)
       setMessages((m) => [...m, { role: 'assistant', text: result.answer, sources: result.sources }])
     } catch (err) {
       const text =

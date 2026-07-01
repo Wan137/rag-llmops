@@ -13,5 +13,11 @@ class DocumentUploadSerializer(serializers.Serializer):
         return value
 
 
+class ChatMessageSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=["user", "assistant"])
+    text = serializers.CharField(max_length=4000)
+
+
 class AskQuestionSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=2000)
+    history = ChatMessageSerializer(many=True, required=False, default=list)

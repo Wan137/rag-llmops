@@ -26,8 +26,8 @@ class RAGService:
         ids = self.vector_store.add_documents(chunks)
         return {"chunks_indexed": len(ids), "total_vectors": self.vector_store.count()}
 
-    def ask(self, question: str) -> QAResult:
-        return self.chain.ask(question)
+    def ask(self, question: str, history: list[dict] | None = None) -> QAResult:
+        return self.chain.ask(question, history)
 
     def health(self) -> dict:
         return {
