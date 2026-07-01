@@ -1,7 +1,7 @@
-"""Small hardcoded eval set matched to data/sample_doc.txt.
+"""Hand-written Q&A pairs for scoring against data/sample_doc.txt.
 
-Kept short (5 questions) since Gemini's free tier has tight rate limits and
-ragas fires one judge-LLM call per metric per row.
+Kept to 5 questions on purpose - ragas fires one judge-LLM call per metric
+per row, and the free Gemini tier doesn't leave much room to go bigger.
 """
 
 from pathlib import Path

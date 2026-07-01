@@ -1,5 +1,4 @@
-"""Django settings. RAG data lives entirely in ChromaDB - this DB is only
-used for Django's own auth/session/admin internals."""
+"""Django settings. This DB is just for auth/sessions/admin - actual RAG data lives in ChromaDB."""
 
 import os
 from pathlib import Path

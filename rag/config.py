@@ -1,12 +1,11 @@
-"""Central settings for the RAG pipeline, loaded from .env via pydantic-settings."""
+"""RAG pipeline settings, loaded from .env."""
 
 from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Absolute path so config loads correctly regardless of the CWD the entry
-# point (manage.py, pytest, scripts/) was launched from.
+# absolute path so this still works no matter where you run from (manage.py, pytest, scripts/...)
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
 
@@ -36,4 +35,4 @@ class RAGConfig(BaseSettings):
 
     # --- Retrieval ---
     retrieval_k: int = 4
-    score_threshold: float = 0.3  # below this, drop the chunk to avoid hallucinations
+    score_threshold: float = 0.3  # anything below this gets dropped so the LLM doesn't hallucinate off weak matches

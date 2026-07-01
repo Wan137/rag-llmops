@@ -1,1 +1,1 @@
-# Stateless app - documents and vectors live in ChromaDB, not in this DB.
+# nothing here on purpose - this app doesn't keep its own DB state, ChromaDB does

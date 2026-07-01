@@ -26,9 +26,8 @@ def test_to_sources_maps_metadata():
 def test_rag_chain_returns_answer_and_sources(monkeypatch, test_config, embeddings, fake_llm):
     monkeypatch.setattr(chain_mod, "build_llm", lambda cfg: fake_llm)
 
-    # Chroma's default relevance-score function is unstable with a single-doc
-    # collection (can go negative) - disable the threshold since this test is
-    # about citation wiring, not retrieval quality.
+    # with just one doc in the collection, Chroma's relevance score gets flaky
+    # (can go negative) - zero out the threshold, we're testing citations here not ranking
     test_config = test_config.model_copy(update={"score_threshold": 0.0})
     store = ChromaVectorStore(test_config, embeddings)
     store.add_documents(

@@ -1,4 +1,4 @@
-"""Builds the embedding model used for indexing and retrieval."""
+"""Loads the embedding model - local HuggingFace, no API key needed."""
 
 import logging
 
@@ -11,13 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 def build_embeddings(config: RAGConfig) -> Embeddings:
-    """Load the local HuggingFace embedding model (free, offline, CPU-only)."""
     logger.info("Loading embedding model '%s'", config.embedding_model)
     return HuggingFaceEmbeddings(
         model_name=config.embedding_model,
         model_kwargs={"device": "cpu"},
         encode_kwargs={
-            "normalize_embeddings": True,  # required for cosine similarity to be valid
+            "normalize_embeddings": True,  # cosine similarity only makes sense on normalized vectors
             "batch_size": 32,
         },
     )

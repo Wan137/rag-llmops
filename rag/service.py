@@ -1,7 +1,7 @@
-"""Facade wiring config, embeddings, vector store, chain, and document processor.
+"""Glues config + embeddings + vector store + chain + processor into one object.
 
-This is the single seam Django views, the eval script, and tests depend on -
-tests monkeypatch get_rag_service() to avoid loading real models.
+Django views, the eval script, and tests all go through get_rag_service()
+instead of touching the pieces directly - makes it one place to mock in tests.
 """
 
 from functools import lru_cache

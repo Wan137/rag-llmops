@@ -1,4 +1,4 @@
-"""Loads a file, cleans the text, and splits it into overlapping chunks."""
+"""Turns a raw file into clean, chunked text ready for embedding."""
 
 import logging
 import re
@@ -19,7 +19,7 @@ from rag.config import RAGConfig
 
 logger = logging.getLogger(__name__)
 
-# Maps file extension -> loader factory.
+# which loader handles which extension
 LOADER_MAP: dict[str, Callable[[str], object]] = {
     ".pdf": PyPDFLoader,
     ".docx": Docx2txtLoader,
@@ -33,13 +33,9 @@ class UnsupportedFileTypeError(ValueError):
 
 
 class DocumentProcessor:
-    """Converts a raw file into a list of text chunks (LangChain Documents).
-
-    Uses RecursiveCharacterTextSplitter, which tries paragraph -> sentence ->
-    word -> char boundaries in order, preserving semantic coherence better
-    than fixed-size splitting.
-    """
-
+    # RecursiveCharacterTextSplitter tries paragraph -> sentence -> word -> char
+    # breaks in that order, so chunks stay semantically coherent instead of
+    # just cutting at a fixed character count.
     def __init__(self, config: RAGConfig) -> None:
         self.config = config
         self._splitter = RecursiveCharacterTextSplitter(
@@ -48,10 +44,6 @@ class DocumentProcessor:
             separators=["\n\n", "\n", ". ", " ", ""],
             length_function=len,
         )
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def process(self, file_path: str | Path) -> list[Document]:
         path = Path(file_path)
@@ -71,7 +63,7 @@ class DocumentProcessor:
         raw_docs = self._load(path)
         cleaned = [self._clean(doc) for doc in raw_docs]
 
-        # Drop empty pages - common with scanned PDFs, cover pages, etc.
+        # scanned PDFs and cover pages often come back blank, so drop those
         cleaned = [d for d in cleaned if d.page_content.strip()]
 
         chunks = self._split(cleaned, source_name=path.name)
@@ -88,12 +80,7 @@ class DocumentProcessor:
 
     @staticmethod
     def supported_extensions() -> list[str]:
-        """Return the list of file extensions this processor supports."""
         return list(LOADER_MAP.keys())
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     def _load(self, path: Path) -> list[Document]:
         loader_factory = LOADER_MAP[path.suffix.lower()]
@@ -102,13 +89,12 @@ class DocumentProcessor:
 
     @staticmethod
     def _clean(doc: Document) -> Document:
-        """Normalize whitespace and strip control characters left by PDF extraction."""
+        # pypdf loves to leave junk behind: mid-word line breaks, stray form-feeds, etc.
         text = doc.page_content
 
-        text = re.sub(r"-\n(\w)", r"\1", text)  # rejoin hyphenated line breaks
-        text = re.sub(r"\n{3,}", "\n\n", text)  # collapse blank lines
+        text = re.sub(r"-\n(\w)", r"\1", text)  # "infor-\nmation" -> "information"
+        text = re.sub(r"\n{3,}", "\n\n", text)  # 3+ blank lines -> 1
         text = re.sub(r"[ \t]+", " ", text)
-        # Drop non-printable control chars (e.g. form-feed) but keep all other text/unicode.
         text = "".join(ch for ch in text if ch in "\n\t" or unicodedata.category(ch)[0] != "C")
 
         return Document(page_content=text.strip(), metadata=doc.metadata)
@@ -118,10 +104,8 @@ class DocumentProcessor:
         docs: list[Document],
         source_name: str,
     ) -> list[Document]:
-        """Split pages into overlapping chunks and enrich their metadata.
-
-        Adds: source (filename), chunk_index, total_chunks, page (1-indexed).
-        """
+        # tags each chunk with source/chunk_index/total_chunks/page so the API
+        # can cite where an answer actually came from
         chunks = self._splitter.split_documents(docs)
         total = len(chunks)
 
@@ -133,8 +117,8 @@ class DocumentProcessor:
                     "total_chunks": total,
                 }
             )
-            # PyPDF sets "page" as 0-indexed - convert to 1-indexed for humans
             if "page" in chunk.metadata:
+                # pypdf numbers pages from 0, nobody else does
                 chunk.metadata["page"] = int(chunk.metadata["page"]) + 1
 
         return chunks

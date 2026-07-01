@@ -18,7 +18,7 @@ def test_config(tmp_path):
 
 @pytest.fixture(scope="session")
 def embeddings():
-    # Loaded once per test session - real local model, no API key needed.
+    # session-scoped so we're not reloading the model for every single test
     return build_embeddings(RAGConfig(embedding_model="sentence-transformers/all-MiniLM-L6-v2"))
 
 

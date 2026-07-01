@@ -63,6 +63,27 @@ curl -X POST -H "Content-Type: application/json" \
      http://127.0.0.1:8000/api/ask/
 ```
 
+## Frontend
+
+A small React + Vite UI lives in `frontend/` - upload docs, chat with the
+index, see cited sources. Needs the Django server running too:
+
+```bash
+# terminal 1, repo root
+python manage.py runserver
+
+# terminal 2
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The dev server proxies `/api/*` to Django on
+port 8000, so no CORS setup is needed locally. Nothing persists across a
+page refresh (chat history and the "uploaded this session" list are just
+React state) - matches the backend, which also doesn't keep uploaded files
+around, only their indexed chunks.
+
 ## Tests
 
 ```bash
@@ -83,7 +104,8 @@ Indexes a sample document, runs a small Q&A set through the real pipeline,
 and scores the answers with RAGAS (faithfulness, answer relevancy, context
 precision, context recall) using Gemini as the judge model. Results are
 logged to MLflow (`mlflow ui` to view) and written to
-`evaluation/results/latest.json`.
+`evaluation/results/latest.json` (gitignored - it's a local run artifact,
+regenerate it yourself rather than trusting a stale copy).
 
 ## Known limitations
 
@@ -92,6 +114,13 @@ logged to MLflow (`mlflow ui` to view) and written to
 - `data/chroma_db/` is local disk storage; on ephemeral free hosting tiers
   this won't survive a redeploy without an external volume.
 - The local embedding model needs ~1GB RAM at runtime (torch + the model).
+- **Free-tier Gemini quota is tight for evaluation.** A single
+  `evaluation/run_eval.py` run makes ~25 Gemini calls (5 to generate answers +
+  up to 20 RAGAS judge calls). Some free-tier API keys are capped at as few as
+  20 `gemini-2.5-flash` requests/day, which one eval run alone can exhaust -
+  you'll see `RESOURCE_EXHAUSTED` (429) errors and `NaN` scores if that
+  happens. Check your quota at https://ai.dev/rate-limit, wait for it to
+  reset, or reduce `evaluation/dataset.py`'s question count.
 
 ## Sprint history
 
@@ -100,3 +129,4 @@ logged to MLflow (`mlflow ui` to view) and written to
 3. RAG chain (retriever -> prompt -> Gemini) with cited sources
 4. Django REST API (health / ask / document upload)
 5. RAGAS evaluation + MLflow tracking
+6. React + Vite frontend

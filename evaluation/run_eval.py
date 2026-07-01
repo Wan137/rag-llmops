@@ -1,26 +1,26 @@
-"""RAGAS quality evaluation against a sample document, logged to MLflow.
+"""Runs the RAG pipeline over the eval dataset, then scores it with RAGAS.
 
 Run from the repo root: python evaluation/run_eval.py
-Requires GOOGLE_API_KEY to be set (both the RAG chain and the ragas judge use Gemini).
+Needs GOOGLE_API_KEY set - both the RAG chain and the ragas judge call Gemini.
+
+NOTE: scoring happens in a separate process (_score_and_log.py), not because
+it's "cleaner" but because it has to be - chromadb and the datasets/pyarrow
+stack that ragas + mlflow pull in segfault when they're loaded together in
+the same process on this machine. Tracked that down the hard way, so don't
+merge these back into one file without testing on Windows first.
 """
 
 import json
 import logging
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import mlflow
-from ragas import EvaluationDataset, evaluate
-from ragas.dataset_schema import SingleTurnSample
-from ragas.embeddings import LangchainEmbeddingsWrapper
-from ragas.llms import LangchainLLMWrapper
-from ragas.metrics import AnswerRelevancy, ContextPrecision, ContextRecall, Faithfulness
-from ragas.run_config import RunConfig
-
 from evaluation.dataset import EVAL_DATASET, SAMPLE_DOC_PATH
-from rag.chain import RAGChain, build_llm
+from rag.chain import RAGChain
 from rag.config import RAGConfig
 from rag.embeddings import build_embeddings
 from rag.pipeline.document_processor import DocumentProcessor
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 RESULTS_PATH = Path(__file__).parent / "results" / "latest.json"
 
 
-def build_eval_samples(config: RAGConfig) -> list[SingleTurnSample]:
+def build_eval_samples(config: RAGConfig) -> list[dict]:
     embeddings = build_embeddings(config)
     store = ChromaVectorStore(config, embeddings)
     store.reset()
@@ -48,12 +48,12 @@ def build_eval_samples(config: RAGConfig) -> list[SingleTurnSample]:
         retrieved = store.similarity_search(question, k=config.retrieval_k)
         result = chain.ask(question)
         samples.append(
-            SingleTurnSample(
-                user_input=question,
-                response=result.answer,
-                retrieved_contexts=[d.page_content for d in retrieved],
-                reference=row["ground_truth"],
-            )
+            {
+                "question": question,
+                "answer": result.answer,
+                "retrieved_contexts": [d.page_content for d in retrieved],
+                "reference": row["ground_truth"],
+            }
         )
         logger.info("Answered: %s", question)
     return samples
@@ -61,40 +61,26 @@ def build_eval_samples(config: RAGConfig) -> list[SingleTurnSample]:
 
 def main() -> None:
     config = RAGConfig(collection_name="eval_documents")
-
     samples = build_eval_samples(config)
-    dataset = EvaluationDataset(samples=samples)
 
-    judge_llm = LangchainLLMWrapper(build_llm(config))
-    judge_embeddings = LangchainEmbeddingsWrapper(build_embeddings(config))
+    params = {
+        "llm_model": config.llm_model,
+        "embedding_model": config.embedding_model,
+        "chunk_size": config.chunk_size,
+        "chunk_overlap": config.chunk_overlap,
+        "retrieval_k": config.retrieval_k,
+    }
 
-    result = evaluate(
-        dataset,
-        metrics=[Faithfulness(), AnswerRelevancy(), ContextPrecision(), ContextRecall()],
-        llm=judge_llm,
-        embeddings=judge_embeddings,
-        # max_workers=1 respects Gemini's free-tier rate limits
-        run_config=RunConfig(max_workers=1, timeout=120),
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        json.dump({"samples": samples, "params": params}, f)
+        samples_path = f.name
+
+    subprocess.run(
+        [sys.executable, str(Path(__file__).parent / "_score_and_log.py"), samples_path, str(RESULTS_PATH)],
+        check=True,
     )
 
-    metric_names = ["faithfulness", "answer_relevancy", "context_precision", "context_recall"]
-    scores = {name: sum(result[name]) / len(result[name]) for name in metric_names}
-
-    with mlflow.start_run(run_name="rag_eval"):
-        mlflow.log_params(
-            {
-                "llm_model": config.llm_model,
-                "embedding_model": config.embedding_model,
-                "chunk_size": config.chunk_size,
-                "chunk_overlap": config.chunk_overlap,
-                "retrieval_k": config.retrieval_k,
-            }
-        )
-        mlflow.log_metrics(scores)
-
-    RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    RESULTS_PATH.write_text(json.dumps(scores, indent=2))
-
+    scores = json.loads(RESULTS_PATH.read_text())["scores"]
     print("\n" + "=" * 55)
     print("  RAGAS evaluation results")
     print("=" * 55)

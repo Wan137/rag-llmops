@@ -1,4 +1,4 @@
-"""Retriever -> prompt -> Gemini chain that answers with cited sources."""
+"""The actual RAG chain: retrieve chunks, feed them to Gemini, cite where the answer came from."""
 
 from dataclasses import dataclass, field
 
@@ -60,8 +60,6 @@ def _to_sources(docs: list) -> list[Source]:
 
 
 class RAGChain:
-    """LCEL chain: retriever | prompt | llm | parser, with source citations."""
-
     def __init__(self, config: RAGConfig, vector_store: ChromaVectorStore) -> None:
         self._retriever = vector_store.as_retriever()
         llm = build_llm(config)
@@ -72,8 +70,8 @@ class RAGChain:
             | llm
             | StrOutputParser()
         )
-        # Keep the raw retrieved Documents alongside the generated answer so
-        # sources survive past the prompt step (which only sees formatted text).
+        # the prompt step only sees formatted text, so we carry the raw Documents
+        # through in parallel - that's the only way to still have sources afterwards
         self._chain = RunnableParallel(
             context=self._retriever, question=RunnablePassthrough()
         ).assign(answer=answer_chain)

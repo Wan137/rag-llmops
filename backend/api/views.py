@@ -41,7 +41,6 @@ class DocumentUploadView(APIView):
             result = get_rag_service().ingest_file(tmp_path)
             return Response(result)
         finally:
-            # Only the extracted chunks are persisted (in ChromaDB) - the
-            # original upload is not retained.
+            # we only keep the chunks in ChromaDB, not the original file
             if tmp_path:
                 Path(tmp_path).unlink(missing_ok=True)
