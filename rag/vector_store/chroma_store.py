@@ -88,6 +88,7 @@ class ChromaVectorStore:
         self,
         k: Optional[int] = None,
         score_threshold: Optional[float] = None,
+        source_filter: Optional[str] = None,
     ) -> VectorStoreRetriever:
         k = k or self.config.retrieval_k
         threshold = score_threshold or self.config.score_threshold
@@ -100,9 +101,13 @@ class ChromaVectorStore:
             search_kwargs["score_threshold"] = threshold
             search_type = "similarity_score_threshold"
 
+        # restricts retrieval to one uploaded file instead of the whole collection
+        if source_filter:
+            search_kwargs["filter"] = {"source": source_filter}
+
         logger.debug(
-            "Building retriever: k=%d, search_type='%s', threshold=%s",
-            k, search_type, threshold,
+            "Building retriever: k=%d, search_type='%s', threshold=%s, source_filter=%s",
+            k, search_type, threshold, source_filter,
         )
 
         return self._store.as_retriever(

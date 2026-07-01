@@ -77,6 +77,24 @@ def test_rag_chain_with_history_does_not_error(monkeypatch, test_config, embeddi
     assert len(result.sources) == 1
 
 
+def test_rag_chain_source_filter_scopes_retrieval(monkeypatch, test_config, embeddings, fake_llm):
+    monkeypatch.setattr(chain_mod, "build_llm", lambda cfg: fake_llm)
+    test_config = test_config.model_copy(update={"score_threshold": 0.0})
+    store = ChromaVectorStore(test_config, embeddings)
+    store.add_documents(
+        [
+            Document(page_content="Dastan's resume: backend developer.", metadata={"source": "resume.pdf", "chunk_index": 0}),
+            Document(page_content="Smart city AI case study.", metadata={"source": "case_study.docx", "chunk_index": 0}),
+        ]
+    )
+
+    chain = RAGChain(test_config, store)
+    result = chain.ask("what is this about?", source_filter="resume.pdf")
+
+    assert len(result.sources) == 1
+    assert result.sources[0].source == "resume.pdf"
+
+
 @pytest.mark.skipif(not os.getenv("GOOGLE_API_KEY"), reason="needs a real GOOGLE_API_KEY")
 def test_rag_chain_live_gemini_call(test_config, embeddings):
     store = ChromaVectorStore(test_config, embeddings)

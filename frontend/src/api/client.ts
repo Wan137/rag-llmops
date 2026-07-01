@@ -36,11 +36,12 @@ export async function getHealth(): Promise<HealthResponse> {
 export async function askQuestion(
   question: string,
   history: ChatHistoryMessage[] = [],
+  sourceFilter: string | null = null,
 ): Promise<AskResponse> {
   const res = await fetch(`${API_BASE}/api/ask/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, history }),
+    body: JSON.stringify({ question, history, source_filter: sourceFilter }),
   })
   return handleResponse<AskResponse>(res)
 }

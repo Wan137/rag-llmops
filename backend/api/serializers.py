@@ -21,3 +21,5 @@ class ChatMessageSerializer(serializers.Serializer):
 class AskQuestionSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=2000)
     history = ChatMessageSerializer(many=True, required=False, default=list)
+    # null/omitted means "search everything"; set to scope the question to one uploaded file
+    source_filter = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)

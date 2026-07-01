@@ -10,7 +10,11 @@ function toHistory(messages: Message[]): ChatHistoryMessage[] {
     .map((m) => ({ role: m.role, text: m.text }))
 }
 
-export function ChatPanel() {
+type Props = {
+  sourceFilter: string | null
+}
+
+export function ChatPanel({ sourceFilter }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [isAsking, setIsAsking] = useState(false)
@@ -30,7 +34,7 @@ export function ChatPanel() {
     setIsAsking(true)
 
     try {
-      const result = await askQuestion(q, history)
+      const result = await askQuestion(q, history, sourceFilter)
       setMessages((m) => [...m, { role: 'assistant', text: result.answer, sources: result.sources }])
     } catch (err) {
       const text =

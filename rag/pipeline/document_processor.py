@@ -45,7 +45,7 @@ class DocumentProcessor:
             length_function=len,
         )
 
-    def process(self, file_path: str | Path) -> list[Document]:
+    def process(self, file_path: str | Path, source_name: str | None = None) -> list[Document]:
         path = Path(file_path)
 
         ext = path.suffix.lower()
@@ -66,7 +66,7 @@ class DocumentProcessor:
         # scanned PDFs and cover pages often come back blank, so drop those
         cleaned = [d for d in cleaned if d.page_content.strip()]
 
-        chunks = self._split(cleaned, source_name=path.name)
+        chunks = self._split(cleaned, source_name=source_name or path.name)
 
         logger.info(
             "'%s' -> %d raw pages -> %d chunks (size=%d, overlap=%d)",

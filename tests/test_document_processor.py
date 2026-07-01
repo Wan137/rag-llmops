@@ -18,6 +18,15 @@ def test_chunk_metadata(test_config, sample_txt_file):
         assert chunk.metadata["total_chunks"] == len(chunks)
 
 
+def test_source_name_override(test_config, sample_txt_file):
+    # the Django view passes the *original* upload filename here, since the actual
+    # file on disk at this point is a randomly-named temp file
+    processor = DocumentProcessor(test_config)
+    chunks = processor.process(sample_txt_file, source_name="my_resume.pdf")
+
+    assert all(chunk.metadata["source"] == "my_resume.pdf" for chunk in chunks)
+
+
 def test_unsupported_extension_raises(test_config):
     processor = DocumentProcessor(test_config)
     with pytest.raises(UnsupportedFileTypeError):

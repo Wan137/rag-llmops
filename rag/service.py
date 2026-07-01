@@ -21,13 +21,15 @@ class RAGService:
         self.processor = DocumentProcessor(self.config)
         self.chain = RAGChain(self.config, self.vector_store)
 
-    def ingest_file(self, file_path: str) -> dict:
-        chunks = self.processor.process(file_path)
+    def ingest_file(self, file_path: str, source_name: str | None = None) -> dict:
+        chunks = self.processor.process(file_path, source_name)
         ids = self.vector_store.add_documents(chunks)
         return {"chunks_indexed": len(ids), "total_vectors": self.vector_store.count()}
 
-    def ask(self, question: str, history: list[dict] | None = None) -> QAResult:
-        return self.chain.ask(question, history)
+    def ask(
+        self, question: str, history: list[dict] | None = None, source_filter: str | None = None
+    ) -> QAResult:
+        return self.chain.ask(question, history, source_filter)
 
     def health(self) -> dict:
         return {

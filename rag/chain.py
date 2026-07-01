@@ -77,7 +77,7 @@ def _to_lc_messages(history: list[dict] | None) -> list[BaseMessage]:
 
 class RAGChain:
     def __init__(self, config: RAGConfig, vector_store: ChromaVectorStore) -> None:
-        self._retriever = vector_store.as_retriever()
+        self._vector_store = vector_store
         llm = build_llm(config)
 
         answer_chain = (
@@ -86,14 +86,20 @@ class RAGChain:
             | llm
             | StrOutputParser()
         )
-        # retriever only needs the question text, but the prompt also needs history -
-        # so the chain now takes a dict instead of a bare question string
+        # retrieval is built per-call (not once up front) since it can be scoped to
+        # a single uploaded file via source_filter - a fixed retriever couldn't do that
         self._chain = RunnableParallel(
-            context=(lambda x: x["question"]) | self._retriever,
+            context=self._retrieve,
             question=lambda x: x["question"],
             history=lambda x: _to_lc_messages(x.get("history")),
         ).assign(answer=answer_chain)
 
-    def ask(self, question: str, history: list[dict] | None = None) -> QAResult:
-        result = self._chain.invoke({"question": question, "history": history})
+    def _retrieve(self, x: dict) -> list:
+        retriever = self._vector_store.as_retriever(source_filter=x.get("source_filter"))
+        return retriever.invoke(x["question"])
+
+    def ask(
+        self, question: str, history: list[dict] | None = None, source_filter: str | None = None
+    ) -> QAResult:
+        result = self._chain.invoke({"question": question, "history": history, "source_filter": source_filter})
         return QAResult(answer=result["answer"], sources=_to_sources(result["context"]))

@@ -21,7 +21,7 @@ class AskQuestionView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        result = get_rag_service().ask(data["question"], data.get("history"))
+        result = get_rag_service().ask(data["question"], data.get("history"), data.get("source_filter"))
         return Response(dataclasses.asdict(result))
 
 
@@ -39,7 +39,7 @@ class DocumentUploadView(APIView):
                     tmp.write(chunk)
                 tmp_path = tmp.name
 
-            result = get_rag_service().ingest_file(tmp_path)
+            result = get_rag_service().ingest_file(tmp_path, source_name=upload.name)
             return Response(result)
         finally:
             # we only keep the chunks in ChromaDB, not the original file

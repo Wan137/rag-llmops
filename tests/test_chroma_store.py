@@ -65,3 +65,19 @@ def test_uses_cosine_space(test_config, embeddings):
     store = ChromaVectorStore(test_config, embeddings)
     collection = store._client.get_collection(test_config.collection_name)
     assert collection.metadata["hnsw:space"] == "cosine"
+
+
+def test_as_retriever_source_filter_scopes_to_one_file(test_config, embeddings):
+    store = ChromaVectorStore(test_config, embeddings)
+    store.add_documents(
+        [
+            Document(page_content="Dastan's resume: backend developer.", metadata={"source": "resume.pdf", "chunk_index": 0}),
+            Document(page_content="Smart city AI case study.", metadata={"source": "case_study.docx", "chunk_index": 0}),
+        ]
+    )
+
+    retriever = store.as_retriever(k=2, score_threshold=0.0, source_filter="resume.pdf")
+    docs = retriever.invoke("what is this about?")
+
+    assert len(docs) == 1
+    assert docs[0].metadata["source"] == "resume.pdf"
