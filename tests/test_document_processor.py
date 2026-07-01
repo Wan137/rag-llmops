@@ -1,6 +1,10 @@
+from pathlib import Path
+
 import pytest
 
 from rag.pipeline.document_processor import DocumentProcessor, UnsupportedFileTypeError
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 def test_chunk_metadata(test_config, sample_txt_file):
@@ -45,6 +49,16 @@ def test_hyphenated_linebreak_rejoined(test_config, tmp_path):
 
     assert "infor-\nmation" not in chunks[0].page_content
     assert "information" in chunks[0].page_content
+
+
+def test_docx_file_loads(test_config):
+    # regression test: Docx2txtLoader needs the docx2txt package specifically,
+    # not python-docx - easy to get wrong since they sound interchangeable
+    processor = DocumentProcessor(test_config)
+    chunks = processor.process(FIXTURES_DIR / "sample.docx")
+
+    assert len(chunks) > 0
+    assert "Retrieval-Augmented Generation" in chunks[0].page_content
 
 
 def test_supported_extensions():

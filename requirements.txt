@@ -19,7 +19,7 @@ chromadb==1.5.9
 
 # --- Document Loaders ---
 pypdf==4.3.1
-python-docx==1.1.2
+docx2txt==0.9  # what Docx2txtLoader actually needs, not python-docx
 unstructured==0.15.0
 
 # --- Embeddings (local, free, no API key) ---
