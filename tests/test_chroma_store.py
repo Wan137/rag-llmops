@@ -57,3 +57,11 @@ def test_reset_empties_collection(test_config, embeddings):
 
     store.reset()
     assert store.count() == 0
+
+
+def test_uses_cosine_space(test_config, embeddings):
+    # regression test: default (l2) space gives relevance scores that don't map
+    # to 0-1 at all with normalized embeddings, breaking score_threshold filtering
+    store = ChromaVectorStore(test_config, embeddings)
+    collection = store._client.get_collection(test_config.collection_name)
+    assert collection.metadata["hnsw:space"] == "cosine"

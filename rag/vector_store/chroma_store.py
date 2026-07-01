@@ -48,6 +48,11 @@ class ChromaVectorStore:
             client=self._client,
             collection_name=self.config.collection_name,
             embedding_function=self._embeddings,
+            # our embeddings are normalized, so cosine is the right distance metric.
+            # Chroma's default (l2) gives scores that don't map to 0-1 at all - can go
+            # negative even for genuinely relevant matches. only applies to new
+            # collections though, existing ones keep whatever space they were created with.
+            collection_metadata={"hnsw:space": "cosine"},
         )
 
     def add_documents(self, documents: list[Document]) -> list[str]:

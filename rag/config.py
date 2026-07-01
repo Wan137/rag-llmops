@@ -35,4 +35,8 @@ class RAGConfig(BaseSettings):
 
     # --- Retrieval ---
     retrieval_k: int = 4
-    score_threshold: float = 0.3  # anything below this gets dropped so the LLM doesn't hallucinate off weak matches
+    # anything below this gets dropped so the LLM doesn't hallucinate off weak matches.
+    # kept low because generic questions ("what is this about?") score lower against
+    # specific chunks than you'd expect, even when they're the right chunks - cosine
+    # similarity isn't as generous as it sounds for vague queries.
+    score_threshold: float = 0.15
