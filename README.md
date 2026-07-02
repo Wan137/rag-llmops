@@ -129,6 +129,33 @@ python manage.py runserver      # backend, from backend/
 npm run dev                     # frontend, from frontend/
 ```
 
+## Deploying (free tier)
+
+Backend and frontend deploy separately.
+
+**Backend - Hugging Face Spaces (Docker).** Render's free tier caps out at
+512MB RAM, and the local embedding model alone needs ~1GB (see Known
+limitations), so it doesn't fit there - HF Spaces' free CPU tier gives 16GB.
+
+1. Create a Space at huggingface.co -> New Space -> SDK: **Docker** -> hardware:
+   free CPU basic. The repo root `Dockerfile` builds as-is.
+2. Push this repo to the Space's git remote (or use Spaces' "Sync from GitHub"
+   if you want auto-deploys on push).
+3. In the Space's Settings -> Repository secrets, set at minimum
+   `GOOGLE_API_KEY`. Also set `DJANGO_ALLOWED_HOSTS` to the Space's hostname
+   (e.g. `your-space.hf.space`) and `DJANGO_DEBUG=false`.
+4. Note the Space's public URL once it's up - the frontend needs it.
+
+**Frontend - Vercel.** Import this repo, set the project's root directory to
+`frontend/`, framework preset Vite (auto-detected). Add an environment
+variable `VITE_API_BASE_URL` pointing at the HF Space URL from step 4.
+
+**Then close the loop:** set `CORS_ALLOWED_ORIGINS` on the Space to the
+Vercel URL Vercel gives you, so the backend accepts requests from it.
+
+Both platforms have ephemeral disk on their free tiers, so `data/chroma_db`
+resets on redeploy/restart - re-upload documents afterward.
+
 ## Sprint history
 
 1. ChromaDB + embeddings wiring
