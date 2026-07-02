@@ -122,6 +122,13 @@ regenerate it yourself rather than trusting a stale copy).
   happens. Check your quota at https://ai.dev/rate-limit, wait for it to
   reset, or reduce `evaluation/dataset.py`'s question count.
 
+## Running locally
+
+```
+python manage.py runserver      # backend, from backend/
+npm run dev                     # frontend, from frontend/
+```
+
 ## Sprint history
 
 1. ChromaDB + embeddings wiring
